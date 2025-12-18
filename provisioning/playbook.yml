@@ -1,0 +1,55 @@
+---
+- name: Configure VM with Docker and Hello World container
+  hosts: localhost
+  connection: local
+  become: true
+
+  tasks:
+    - name: Ensure Docker is installed (should already be from Vagrant shell)
+      apt:
+        name: docker.io
+        state: present
+        update_cache: yes
+
+    - name: Ensure Docker service is running
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Create directory for Hello World HTML
+      file:
+        path: /opt/hello-html
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Copy Hello World page from shared folder into VM
+      copy:
+        src: /vagrant/html/index.html
+        dest: /opt/hello-html/index.html
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Pull nginx Docker image
+      command: docker pull nginx:alpine
+
+    - name: Stop hello-world container if running
+      shell: docker stop hello-world || true
+      args:
+        warn: false
+
+    - name: Remove hello-world container if it exists
+      shell: docker rm hello-world || true
+      args:
+        warn: false
+
+    - name: Run hello-world nginx container
+      command: >
+        docker run -d
+        --name hello-world
+        -p 80:80
+        -v /opt/hello-html:/usr/share/nginx/html:ro
+        nginx:alpine
